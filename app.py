@@ -5,8 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 
-# إعداد الصفحة وتكوين الواجهة ودعم الـ RTL
-st.set_page_title("تحليل المبيعات الذكي - Smart Sales & Discount Analytics", layout="wide")
+# إعداد الصفحة الأساسي (يجب أن يكون أول أمر Streamlit)
+st.set_page_config(page_title="تحليل المبيعات الذكي - Smart Sales & Discount Analytics", layout="wide")
 
 # شريط جانبي لاختيار اللغات والإعدادات
 st.sidebar.title("إعدادات التقرير / Settings")
@@ -36,7 +36,6 @@ uploaded_file = st.sidebar.file_uploader(
 
 if uploaded_file is not None:
     try:
-        # قراءة الأوراق المتاحة في الملف
         xls = pd.ExcelFile(uploaded_file)
         sheet_names = xls.sheet_names
         
@@ -49,29 +48,23 @@ if uploaded_file is not None:
         
         st.success("تم رفع الملف بنجاح! جاري تحليل البيانات..." if is_arabic else "File successfully uploaded!")
         
-        # عرض عينة سريعة من البيانات
         with st.expander("🔍 استعراض عينة من البيانات الخام" if is_arabic else "Preview Raw Data"):
             st.dataframe(df.head(10))
             
-        # محاولة اكتشاف الأعمدة تلقائياً
         cols = df.columns.tolist()
         
         st.sidebar.markdown("---")
         st.sidebar.subheader("🔗 ربط الأعمدة الذكي" if is_arabic else "Smart Column Mapping")
         
-        # اختيار الأعمدة الأساسية بذكاء
         product_col = st.sidebar.selectbox("عمود المنتج / Product", cols, index=0 if len(cols)>0 else 0)
         date_col = st.sidebar.selectbox("عمود تاريخ البيع / Date", cols, index=1 if len(cols)>1 else 0)
         sales_col = st.sidebar.selectbox("عمود قيمة/كمية المبيعات / Sales", cols, index=2 if len(cols)>2 else 0)
         
-        # معالجة التواريخ والبيانات
         df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
         df[sales_col] = pd.to_numeric(df[sales_col], errors='coerce')
         
-        # تنظيف البيانات من القيم الفارغة
         df = df.dropna(subset=[date_col, sales_col])
         
-        # الفلاتر الجانبية (Slicers)
         st.sidebar.markdown("---")
         st.sidebar.subheader("🔍 فلاتر البحث / Filters")
         
@@ -90,7 +83,6 @@ if uploaded_file is not None:
         else:
             df_filtered = df
             
-        # المؤشرات الرئيسية (KPI Cards)
         st.subheader("📌 مؤشرات الأداء الرئيسية (KPIs)" if is_arabic else "Key Performance Indicators")
         
         total_sales = df_filtered[sales_col].sum()
@@ -107,13 +99,11 @@ if uploaded_file is not None:
             
         st.markdown("---")
         
-        # الرسوم البيانية
         st.subheader("📈 التحليل البصري والرسوم البيانية" if is_arabic else "Visualizations & Charts")
         
         col_a, col_b = st.columns(2)
         
         with col_a:
-            # رسم زمني للمبيعات
             daily_sales = df_filtered.groupby(df_filtered[date_col].dt.date)[sales_col].sum().reset_index()
             fig_line = px.line(
                 daily_sales, x=date_col, y=sales_col, 
@@ -123,7 +113,6 @@ if uploaded_file is not None:
             st.plotly_chart(fig_line, use_container_width=True)
             
         with col_b:
-            # مقارنة أعلى المنتجات مبيعاً
             top_products = df_filtered.groupby(product_col)[sales_col].sum().reset_index().nlargest(10, sales_col)
             fig_bar = px.bar(
                 top_products, x=product_col, y=sales_col,
@@ -132,24 +121,21 @@ if uploaded_file is not None:
             )
             st.plotly_chart(fig_bar, use_container_width=True)
             
-        # محرك الرؤى والتحليل الذكي (Insights Engine)
         st.markdown("---")
         st.subheader("💡 الرؤى والتوصيات التحليلية (AI Insights)" if is_arabic else "Smart Analytics & Insights")
         
-        # حساب بعض الإحصائيات الذكية كأمثلة عملية
         best_product = top_products.iloc[0][product_col] if not top_products.empty else "N/A"
         best_sales_val = top_products.iloc[0][sales_col] if not top_products.empty else 0
         
         if is_arabic:
             st.info(f"""
             * **المنتج الأعلى أداءً:** المنتج **{best_product}** يستحوذ على النصيب الأكبر من المبيعات بإجمالي **{best_sales_val:,.2f}**.
-            * **توجيه استراتيجي:** يُنصح بمراجعة المنتجات ذات الأداء المنخفض في النصف الثاني من الفترة وتفعيل خطط الخصومات عليها لتحريك المخزون الراكد.
-            * **كشف الشاذ (Outliers):** تم رصد أيام بمعدلات طلب استثنائية، يُرجى مراجعة الحملات التسويقية المرتبطة بها لتعميم التجربة الناجحة.
+            * **توجيه استراتيجي:** يُنصح بمراجعة المنتجات ذات الأداء المنخفض وتفعيل خطط الخصومات عليها لتحريك المخزون.
+            * **كشف الشاذ (Outliers):** تم رصد أيام بمعدلات طلب استثنائية، يُرجى مراجعة الحملات التسويقية المرتبطة بها.
             """)
         else:
             st.info(f"Top performing product is **{best_product}** with sales of **{best_sales_val:,.2f}**.")
             
-        # زر لتصدير البيانات المعالجة
         st.markdown("---")
         st.subheader("📥 تصدير التقرير" if is_arabic else "Export Report")
         
