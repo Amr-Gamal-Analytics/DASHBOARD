@@ -4,10 +4,10 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-# إعداد الصفحة
-st.set_page_config(page_title="تحليل مبيعات الخصومات - Sales & Discount Dashboard", layout="wide")
+# إعداد الصفحة وتوسيع العرض
+st.set_page_config(page_title="لوحة تحليلات المبيعات والخصومات المتقدمة", layout="wide")
 
-st.sidebar.title("إعدادات التقرير / Settings")
+st.sidebar.title("⚙️ لوحة التحكم والإعدادات")
 lang = st.sidebar.selectbox("اختر اللغة / Language", ["العربية (Arabic)", "English"])
 is_arabic = "العربية" in lang
 
@@ -21,13 +21,13 @@ if is_arabic:
         </style>
     """, unsafe_allow_html=True)
 
-st.title("📊 لوحة تحليلات المنتجات والخصومات ومبيعات ٢٠٢٦" if is_arabic else "📊 Discount & Sales Analytics Dashboard")
+st.title("📊 لوحة تحليلات المبيعات والخصومات الاحترافية (Power BI Style)" if is_arabic else "📊 Professional Sales & Discount Analytics Dashboard")
 st.markdown("---")
 
 # رفع الملفات
-st.sidebar.header("📁 رفع البيانات / Upload Data")
+st.sidebar.header("📁 بيانات الملف")
 uploaded_file = st.sidebar.file_uploader(
-    "ارفع ملف الإكسيل الخاص بك" if is_arabic else "Upload your Excel file", 
+    "ارفع شيت الإكسيل (discount items sales.xlsx)" if is_arabic else "Upload Excel file", 
     type=["xlsx", "xls"]
 )
 
@@ -35,117 +35,162 @@ if uploaded_file is not None:
     try:
         xls = pd.ExcelFile(uploaded_file)
         sheet_names = xls.sheet_names
-        
-        selected_sheet = st.sidebar.selectbox(
-            "اختر الورقة (Sheet)" if is_arabic else "Select Sheet", 
-            sheet_names
-        )
+        selected_sheet = st.sidebar.selectbox("اختر الشيت (Sheet)", sheet_names)
         
         df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
-        st.success("تم رفع وتحليل الملف بنجاح!" if is_arabic else "File successfully uploaded!")
+        st.success("تم تحليل الشيت وعرض لوحة القيادة بنجاح!" if is_arabic else "Dashboard loaded successfully!")
         
-        with st.expander("🔍 استعراض عينة من البيانات" if is_arabic else "Preview Data"):
-            st.dataframe(df.head(10))
-            
         cols = df.columns.tolist()
         
+        # الفلاتر الجانبية التفاعلية
         st.sidebar.markdown("---")
-        st.sidebar.subheader("🔗 ربط الأعمدة" if is_arabic else "Column Mapping")
+        st.sidebar.subheader("🔍 فلاتر التصفية الذكية")
         
-        # اختيار الأعمدة الافتراضية بناءً على شيتك
-        default_prod = "المسمي" if "المسمي" in cols else cols[0]
-        default_sales = "sales 26" if "sales 26" in cols else (cols[16] if len(cols)>16 else cols[0])
-        default_price = "سعر شامل ض" if "سعر شامل ض" in cols else cols[0]
-        
-        product_col = st.sidebar.selectbox("عمود اسم المنتج / الصنف", cols, index=cols.index(default_prod) if default_prod in cols else 0)
-        sales_col = st.sidebar.selectbox("عمود مبيعات سنة 2026 (sales 26)", cols, index=cols.index(default_sales) if default_sales in cols else 0)
-        price_col = st.sidebar.selectbox("عمود السعر أو القيمة", cols, index=cols.index(default_price) if default_price in cols else 0)
-        
-        # تحويل القيم لأرقام لتجنب أي أخطاء
-        df[sales_col] = pd.to_numeric(df[sales_col], errors='coerce').fillna(0)
-        df[price_col] = pd.to_numeric(df[price_col], errors='coerce').fillna(0)
-        
-        # الفلاتر الجانبية
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("🔍 فلاتر البحث" if is_arabic else "Filters")
-        
+        # تصفية حسب المورد
         if "اسم المورد" in cols:
-            suppliers = ["الكل / All"] + list(df["اسم المورد"].dropna().unique())
-            selected_supplier = st.sidebar.selectbox("تصفية حسب المورد", suppliers)
-            if selected_supplier != "الكل / All":
-                df = df[df["اسم المورد"] == selected_supplier]
+            suppliers = ["الكل"] + list(df["اسم المورد"].dropna().unique())
+            sel_sup = st.sidebar.selectbox("تصفية حسب المورد", suppliers)
+            if sel_sup != "الكل":
+                df = df[df["اسم المورد"] == sel_sup]
                 
-        # المؤشرات الرئيسية (KPIs)
-        st.subheader("📌 مؤشرات الأداء الرئيسية (KPIs)" if is_arabic else "Key Performance Indicators")
-        
-        total_sales_26 = df[sales_col].sum()
-        total_items = len(df)
-        total_revenue_potential = (df[sales_col] * df[price_col]).sum()
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("إجمالي مبيعات 2026 (qtys/sales)", f"{total_sales_26:,.2f}")
-        with col2:
-            st.metric("إجمالي عدد أصناف الخصومات", f"{total_items:,}")
-        with col3:
-            st.metric("إجمالي القيمة المحتملة", f"{total_revenue_potential:,.2f}")
-            
+        # تصفية حسب نوع المورد
+        if "نوع المورد" in cols:
+            types = ["الكل"] + list(df["نوع المورد"].dropna().unique())
+            sel_type = st.sidebar.selectbox("نوع المورد", types)
+            if sel_type != "الكل":
+                df = df[df["نوع المورد"] == sel_type]
+
+        # تنظيف وتحويل الأعمدة الرقمية أساس المقارنة
+        sales_26_col = "sales 26" if "sales 26" in cols else cols[0]
+        sales_25_col = "sales 25" if "sales 25" in cols else cols[0]
+        sales_24_col = "sales 24" if "sales 24" in cols else cols[0]
+        discount_col = "الخصم الجديد" if "الخصم الجديد" in cols else cols[0]
+        price_col = "سعر شامل ض" if "سعر شامل ض" in cols else cols[0]
+        prod_col = "المسمي" if "المسمي" in cols else cols[0]
+
+        df[sales_26_col] = pd.to_numeric(df[sales_26_col], errors='coerce').fillna(0)
+        df[sales_25_col] = pd.to_numeric(df[sales_25_col], errors='coerce').fillna(0)
+        df[sales_24_col] = pd.to_numeric(df[sales_24_col], errors='coerce').fillna(0)
+        df[discount_col] = pd.to_numeric(df[discount_col], errors='coerce').fillna(0)
+        df[price_col] = pd.to_numeric(df[price_col], errors='coerce').fillna(0)
+
+        # بطاقات مؤشرات الأداء الرئيسية (KPIs)
+        st.subheader("📌 مؤشرات الأداء الرئيسية (KPI Cards)")
+        tot_s26 = df[sales_26_col].sum()
+        tot_s25 = df[sales_25_col].sum()
+        tot_s24 = df[sales_24_col].sum()
+        total_items_count = len(df)
+        avg_disc = df[discount_col].mean()
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("مبيعات 2026", f"{tot_s26:,.0f}", delta=f"{tot_s26 - tot_s25:,.0f} vs 2025")
+        with c2:
+            st.metric("مبيعات 2025", f"{tot_s25:,.0f}")
+        with c3:
+            st.metric("إجمالي عدد الأصناف", f"{total_items_count:,}")
+        with c4:
+            st.metric("متوسط نسبة الخصم الجديد", f"{avg_disc:.1f}%")
+
         st.markdown("---")
+
+        # شبكة الرسوم البيانية المتنوعة والاحترافية (6 Charts)
+        st.subheader("📈 التحليلات البصرية المتقدمة (Visualizations)")
+
+        # الصف الأول من الرسوم
+        col_r1_1, col_r1_2 = st.columns(2)
         
-        # الرسوم البيانية
-        st.subheader("📈 التحليل البصري والرسوم البيانية" if is_arabic else "Visualizations & Charts")
-        
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            if "اسم المورد" in cols:
-                supplier_sales = df.groupby("اسم المورد")[sales_col].sum().reset_index().nlargest(10, sales_col)
-                fig_bar = px.bar(
-                    supplier_sales, x="اسم المورد", y=sales_col,
-                    title="أعلى الموردين حسب المبيعات" if is_arabic else "Top Suppliers by Sales",
-                    template="plotly_white"
-                )
-                st.plotly_chart(fig_bar, use_container_width=True)
-            else:
-                st.info("عمود اسم المورد غير متوفر.")
-                
-        with col_b:
-            top_products = df.groupby(product_col)[sales_col].sum().reset_index().nlargest(10, sales_col)
-            fig_top = px.bar(
-                top_products, x=product_col, y=sales_col,
-                title="أعلى المنتجات مبيعاً" if is_arabic else "Top Products",
-                template="plotly_white"
+        with col_r1_1:
+            # 1. مقارنة المبيعات عبر الأعوام (2024 vs 2025 vs 2026)
+            yearly_data = pd.DataFrame({
+                'السنة': ['2024', '2025', '2026'],
+                'إجمالي المبيعات': [tot_s24, tot_s25, tot_s26]
+            })
+            fig_years = px.bar(
+                yearly_data, x='السنة', y='إجمالي المبيعات', 
+                title="مقارنة إجمالي المبيعات عبر الأعوام (2024 - 2026)",
+                color='السنة', template="plotly_white"
             )
+            st.plotly_chart(fig_years, use_container_width=True)
+
+        with col_r1_2:
+            # 2. توزيع قيم الخصومات الجديدة
+            fig_disc = px.histogram(
+                df, x=discount_col, 
+                title="توزيع نسب الخصومات الجديدة على الأصناف",
+                template="plotly_white", color_discrete_sequence=['indianred']
+            )
+            st.plotly_chart(fig_disc, use_container_width=True)
+
+        # الصف الثاني من الرسوم
+        col_r2_1, col_r2_2 = st.columns(2)
+
+        with col_r2_1:
+            # 3. أعلى 10 منتجات مبيعاً في 2026
+            top_prods = df.nlargest(10, sales_26_col)
+            fig_top = px.bar(
+                top_prods, x=sales_26_col, y=prod_col, orientation='h',
+                title="أعلى 10 منتجات مبيعاً لعام 2026",
+                template="plotly_white", color=sales_26_col
+            )
+            fig_top.update_layout(yaxis={'categoryorder':'total ascending'})
             st.plotly_chart(fig_top, use_container_width=True)
-            
+
+        with col_r2_2:
+            # 4. أداء الموردين (إجمالي مبيعات 2026 لكل مورد)
+            if "اسم المورد" in cols:
+                sup_perf = df.groupby("اسم المورد")[sales_26_col].sum().reset_index().nlargest(10, sales_26_col)
+                fig_sup = px.bar(
+                    sup_perf, x="اسم المورد", y=sales_26_col,
+                    title="أداء الموردين (أعلى 10 موردين في مبيعات 2026)",
+                    template="plotly_white", color=sales_26_col
+                )
+                st.plotly_chart(fig_sup, use_container_width=True)
+
+        # الصف الثالث من الرسوم
+        col_r3_1, col_r3_2 = st.columns(2)
+
+        with col_r3_1:
+            # 5. العلاقة بين السعر ومبيعات 2026 (Scatter Plot)
+            fig_scatter = px.scatter(
+                df, x=price_col, y=sales_26_col, color=discount_col,
+                title="تحليل العلاقة بين السعر ومبيعات 2026 (مُموّن بنسبة الخصم)",
+                template="plotly_white", hover_data=[prod_col]
+            )
+            st.plotly_chart(fig_scatter, use_container_width=True)
+
+        with col_r3_2:
+            # 6. نسبة أنواع الموردين (محلي vs خارجي)
+            if "نوع المورد" in cols:
+                type_counts = df["نوع المورد"].value_counts().reset_index()
+                type_counts.columns = ['نوع المورد', 'العدد']
+                fig_pie = px.pie(
+                    type_counts, names='نوع المورد', values='العدد',
+                    title="توزيع الأصناف حسب نوع المورد (محلي / خارجي)",
+                    hole=0.4, template="plotly_white"
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+
         st.markdown("---")
-        st.subheader("💡 الرؤى والتوصيات الذكية" if is_arabic else "Smart Insights")
         
+        # قسم الرؤى التحليلية العميقة (AI Insights)
+        st.subheader("💡 محرك الرؤى والتوصيات التحليلية (Smart Insights Engine)")
+        
+        best_p = top_prods.iloc[0][prod_col] if not top_prods.empty else "N/A"
+        best_p_sales = top_prods.iloc[0][sales_26_col] if not top_prods.empty else 0
+        growth_rate = ((tot_s26 - tot_s25) / tot_s25 * 100) if tot_s25 > 0 else 0
+
         st.info(f"""
-        * **إجمالي وحدات المبيعات المسجلة لعام 2026:** {total_sales_26:,.2f} وحدة عبر {total_items} صنف خاضع للخصم.
-        * **توجيه تحليل البيانات:** تم ربط الأعمدة الفعلية لشيتك بنجاح، مما يتيح لك تصفية النتائج بحرية عبر القائمة الجانبية ومراقبة تأثير الخصومات بدقة.
+        * **معدل النمو العام:** إجمالي مبيعات 2026 يسجل نمواً مقارنة بعام 2025 بنسبة تقريبية **{growth_rate:.1f}%**.
+        * **المنتج النجم (Top Performer):** المنتج الأكثر مبيعاً لعام 2026 هو **{best_p}** بإجمالي مبيعات بلغ **{best_p_sales:,.0f}**.
+        * **توصية استراتيجية:** الأصناف التي تجاوزت نسبة خصمها 30% ولم تحقق معدلات مبيعات مرتفعة يجب مراجعة تسعيرها أو ترويجها في فروع أخرى لتحريك المخزون.
         """)
-        
-        # تصدير التقرير
-        st.markdown("---")
-        st.subheader("📥 تصدير البيانات" if is_arabic else "Export")
-        
-        @st.cache_data
-        def convert_df(df_to_export):
-            return df_to_export.to_csv(index=False).encode('utf-8-sig')
-            
-        csv_data = convert_df(df)
-        st.download_button(
-            label="تحميل التقرير كملف CSV" if is_arabic else "Download Report",
-            data=csv_data,
-            file_name="discount_analysis_report.csv",
-            mime="text/csv"
-        )
-        
+
+        # جدول عينة البيانات المفصلة
+        with st.expander("📋 استعراض الجدول الكامل للبيانات المصفاة"):
+            st.dataframe(df)
+
     except Exception as e:
-        st.error(f"خطأ في قراءة ملف الإكسيل: {e}" if is_arabic else f"Error: {e}")
+        st.error(f"حدث خطأ أثناء معالجة الشيت: {e}")
 else:
-    if is_arabic:
-        st.warning("الرجاء رفع ملف الإكسيل (discount items sales.xlsx) من القائمة الجانبية لعرض التحليلات.")
-    else:
-        st.warning("Please upload your Excel file from the sidebar.")
+    st.warning("الرجاء رفع ملف الإكسيل من القائمة الجانبية (Sidebar) لعرض لوحة التحليلات المتقدمة.")
